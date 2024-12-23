@@ -27,7 +27,7 @@ public class Main {
             MqttClient mqttClient = new MqttClient(mqttUrl, UUID.randomUUID() + " " + machineId);
             MqttConnectOptions mqttOptions = new MqttOptions().getOptions();
             mqttClient.connect(mqttOptions);
-            DispenserService dispenserService = new DispenserService(machineId, mqttClient);
+            BalanceService dispenserService = new BalanceService(machineId, mqttClient);
         } catch (Exception e) {
             e.printStackTrace();
         }
