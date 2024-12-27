@@ -76,7 +76,6 @@ public class DaoBalanceImpl implements DaoBalance{
             } catch (SQLException e) {
                 throw new RuntimeException("Error updating total balance", e);
             }
-
         }
         catch (SQLException e) {
             throw new RuntimeException("Error updating total balance", e);
