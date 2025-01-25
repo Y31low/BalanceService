@@ -5,8 +5,13 @@ import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.uniupo.it.dao.DaoBalanceImpl;
-import org.uniupo.it.model.TransactionRequest;
+import org.uniupo.it.model.Fault;
+import org.uniupo.it.model.FaultType;
+import org.uniupo.it.model.Selection;
 import org.uniupo.it.util.Topics;
+
+import java.sql.Timestamp;
+import java.util.UUID;
 
 public class BalanceService {
     final private String machineId;
@@ -22,7 +27,7 @@ public class BalanceService {
         this.gson = new Gson();
         this.balanceDao = new DaoBalanceImpl();
         this.mqttClient.subscribe(String.format(Topics.BALANCE_CHECK_TOPIC, machineId), this::balanceRequestHandler);
-        this.mqttClient.subscribe(String.format(Topics.PROGRESS_TRANSACTION_TOPIC, machineId), this::handleTransaction);
+        this.mqttClient.subscribe(String.format(Topics.DISPENSE_COMPLETED_TOPIC, machineId), this::handleBalanceAfterSale);
     }
 
     private void balanceRequestHandler(String topic, MqttMessage mqttMessage) {
@@ -37,7 +42,7 @@ public class BalanceService {
         }
     }
 
-    public boolean checkBalance(String drinkCode) {
+    private boolean checkBalance(String drinkCode) {
         double currentBalance = balanceDao.getTotalBalance();
         double maxBalance = balanceDao.getMaxBalance();
         double drinkPrice = balanceDao.getDrinkPrice(drinkCode);
@@ -49,27 +54,45 @@ public class BalanceService {
         return (currentBalance + drinkPrice) <= maxBalance;
     }
 
-    private void handleTransaction(String topic, MqttMessage message) {
-        TransactionRequest request = gson.fromJson(new String(message.getPayload()), TransactionRequest.class);
-        double change = request.currentCredit() - request.drinkPrice();
+    private void handleBalanceAfterSale(String topic, MqttMessage message) {
+        Selection selection = gson.fromJson(new String(message.getPayload()), Selection.class);
+        double drinkPrice = balanceDao.getDrinkPrice(selection.getDrinkCode());
+        System.out.println("Drink price: " + drinkPrice);
+        double currentCredit = balanceDao.getCurrentCredit();
+        System.out.println("Current credit: " + currentCredit);
 
+        double change = currentCredit - drinkPrice;
+        System.out.printf("Change: %.2f\n", change);
+        balanceDao.updateBalanceAfterSale(drinkPrice);
+
+        balanceCheckUp();
+    }
+
+    private void balanceCheckUp() {
+        if (balanceDao.checkCashBoxFull()) {
+            notifyCashBoxFull();
+        } else if (balanceDao.checkCashBox()) {
+            notifyCashBoxNearlyFull();
+        }
+
+    }
+
+    private void notifyCashBoxNearlyFull() {
+        Fault fault = new Fault(machineId, "Cash box nearly full", 1, new Timestamp(System.currentTimeMillis()), UUID.randomUUID(), FaultType.CASSA_QUASI_PIENA);
         try {
-            updateBalanceAfterSale(request.drinkPrice());
-            if (change >= 0) {
-                mqttClient.publish(String.format(Topics.CHANGE_TOPIC, machineId), new MqttMessage(String.valueOf(change).getBytes()));
-                mqttClient.publish(String.format(Topics.DISPLAY_TOPIC, machineId), new MqttMessage(String.format("Total change: %.2f€", change).getBytes()));
-            }
-            else{
-                mqttClient.publish(String.format(Topics.DISPLAY_TOPIC, machineId), new MqttMessage("Total change: 0€".getBytes()));
-            }
+            mqttClient.publish(Topics.MANAGEMENT_SERVER_CASHBOX_TOPIC, new MqttMessage(gson.toJson(fault).getBytes()));
         } catch (MqttException e) {
-            throw new RuntimeException("Error processing transaction", e);
+            throw new RuntimeException("Error publishing cash box nearly full message", e);
         }
     }
 
-    private void updateBalanceAfterSale(double credit) {
-        double currentBalance = balanceDao.getTotalBalance();
-        double newBalance = currentBalance + credit;
-        balanceDao.updateTotalBalance(newBalance);
+    private void notifyCashBoxFull() {
+        try {
+            Fault fault = new Fault(machineId, "Cash box full", 1, new Timestamp(System.currentTimeMillis()), UUID.randomUUID(), FaultType.CASSA_PIENA);
+            mqttClient.publish(Topics.MANAGEMENT_SERVER_CASHBOX_TOPIC, new MqttMessage(gson.toJson(fault).getBytes()));
+        } catch (MqttException e) {
+            throw new RuntimeException("Error publishing cash box full message", e);
+        }
     }
+
 }

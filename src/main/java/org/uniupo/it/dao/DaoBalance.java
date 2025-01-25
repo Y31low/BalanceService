@@ -26,4 +26,11 @@ public interface DaoBalance {
      * @return true se l'operazione è andata a buon fine, false altrimenti
      */
     boolean updateTotalBalance(double newBalance);
+
+    double getCurrentCredit();
+
+    void updateBalanceAfterSale(double drinkPrice);
+
+    boolean checkCashBox();
+    boolean checkCashBoxFull();
 }

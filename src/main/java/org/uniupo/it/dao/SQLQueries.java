@@ -19,6 +19,8 @@ public final class SQLQueries {
         public static final String GET_TOTAL_BALANCE =
                 "SELECT \"totalBalance\" FROM machine.\"Machine\"";
 
+        public static final String RESET_CREDIT = "UPDATE machine.\"Machine\" SET \"totalCredit\" = 0";
+
         /**
          * Query per ottenere il bilancio massimo della macchina
          */
@@ -30,6 +32,21 @@ public final class SQLQueries {
          */
         public static final String UPDATE_TOTAL_BALANCE =
                 "UPDATE machine.\"Machine\" SET \"totalBalance\" = ?";
+
+
+        public static final String GET_CURRENT_CREDIT =
+                "SELECT \"totalCredit\" FROM machine.\"Machine\" LIMIT 1";
+
+        public static final String CHECK_CASH_BOX = """
+            SELECT "totalBalance", "maxBalance"
+            FROM machine."Machine"
+            WHERE "totalBalance" >= "maxBalance" * 0.8;""";
+
+        public static final String CHECK_CASH_BOX_FULL = """
+            SELECT "totalBalance", "maxBalance"
+            FROM machine."Machine"
+            WHERE "totalBalance" >= "maxBalance";""";
+
     }
 
     /**
