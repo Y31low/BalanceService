@@ -1,9 +1,9 @@
 package org.uniupo.it.dao;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import org.uniupo.it.model.FaultMessage;
+
+import java.sql.*;
+import java.util.List;
 
 public class DaoBalanceImpl implements DaoBalance{
     @Override
@@ -156,4 +156,52 @@ public class DaoBalanceImpl implements DaoBalance{
         }
     }
 
+    @Override
+    public void insertFaults(List<FaultMessage> faults) {
+        try (Connection conn = DatabaseConnection.getInstance().getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(SQLQueries.Balance.INSERT_FAULTS)) {
+
+            for (FaultMessage fault : faults) {
+                pstmt.setString(1, fault.getDescription());
+                pstmt.setObject(2, fault.getIdFault());
+                pstmt.setTimestamp(3, fault.getTimestamp());
+                pstmt.setObject(4, fault.getFaultType().toString(), Types.OTHER);
+                pstmt.addBatch();
+            }
+
+            pstmt.executeBatch();
+
+        } catch (SQLException e) {
+            System.out.println("Failed to insert faults" + e.getMessage());
+            throw new RuntimeException("Failed to insert faults", e);
+        }
+    }
+
+    @Override
+    public double returnMoney() {
+        try (Connection conn = DatabaseConnection.getInstance().getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                double creditToReturn;
+                try (PreparedStatement stmtGetCredit = conn.prepareStatement(SQLQueries.Balance.GET_CURRENT_CREDIT)) {
+                    ResultSet rs = stmtGetCredit.executeQuery();
+                    creditToReturn = rs.next() ? rs.getDouble("totalCredit") : 0.0;
+                }
+
+                try (PreparedStatement stmtResetCredit = conn.prepareStatement(SQLQueries.Balance.RESET_CREDIT)) {
+                    stmtResetCredit.executeUpdate();
+                }
+
+                conn.commit();
+                return creditToReturn;
+            } catch (SQLException e) {
+                conn.rollback();
+                throw new RuntimeException("Error returning money", e);
+            } finally {
+                conn.setAutoCommit(true);
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error returning money", e);
+        }
+    }
 }

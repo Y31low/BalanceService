@@ -5,7 +5,8 @@ import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.uniupo.it.dao.DaoBalanceImpl;
-import org.uniupo.it.model.Fault;
+import org.uniupo.it.model.DisplayMessageFormat;
+import org.uniupo.it.model.FaultMessage;
 import org.uniupo.it.model.FaultType;
 import org.uniupo.it.model.Selection;
 import org.uniupo.it.util.Topics;
@@ -16,18 +17,30 @@ import java.util.UUID;
 public class BalanceService {
     final private String machineId;
     final private MqttClient mqttClient;
-    final private String baseTopic;
+    final private String instituteId;
     final private Gson gson;
     final private DaoBalanceImpl balanceDao;
 
-    public BalanceService(String machineId, MqttClient mqttClient) throws MqttException {
+    public BalanceService(String instituteId, String machineId, MqttClient mqttClient) throws MqttException {
         this.machineId = machineId;
         this.mqttClient = mqttClient;
-        this.baseTopic = "macchina/" + machineId + "/balance";
+        this.instituteId = instituteId;
         this.gson = new Gson();
         this.balanceDao = new DaoBalanceImpl();
-        this.mqttClient.subscribe(String.format(Topics.BALANCE_CHECK_TOPIC, machineId), this::balanceRequestHandler);
-        this.mqttClient.subscribe(String.format(Topics.DISPENSE_COMPLETED_TOPIC, machineId), this::handleBalanceAfterSale);
+        this.mqttClient.subscribe(String.format(Topics.BALANCE_CHECK_TOPIC, instituteId, machineId), this::balanceRequestHandler);
+        this.mqttClient.subscribe(String.format(Topics.DISPENSE_COMPLETED_TOPIC, instituteId, machineId), this::handleBalanceAfterSale);
+        this.mqttClient.subscribe(String.format(Topics.BALANCE_RETURN_MONEY_TOPIC, instituteId, machineId), this::returnMoney);
+    }
+
+
+    private void returnMoney(String topic, MqttMessage message) {
+        double amount = balanceDao.returnMoney();
+        try {
+            DisplayMessageFormat displayMessage = new DisplayMessageFormat(false, "Resto: " + amount);
+            mqttClient.publish(String.format(Topics.DISPLAY_TOPIC_UPDATE, instituteId, machineId), new MqttMessage(gson.toJson(displayMessage).getBytes()));
+        } catch (MqttException e) {
+            throw new RuntimeException("Error publishing balance response", e);
+        }
     }
 
     private void balanceRequestHandler(String topic, MqttMessage mqttMessage) {
@@ -36,7 +49,7 @@ public class BalanceService {
         boolean isBalanceOk = checkBalance(drinkCode);
         System.out.println("Balance check result: " + isBalanceOk);
         try {
-            mqttClient.publish(String.format(Topics.BALANCE_CHECK_TOPIC_RESPONSE, machineId), new MqttMessage(gson.toJson(isBalanceOk).getBytes()));
+            mqttClient.publish(String.format(Topics.BALANCE_CHECK_TOPIC_RESPONSE, instituteId, machineId), new MqttMessage(gson.toJson(isBalanceOk).getBytes()));
         } catch (MqttException e) {
             throw new RuntimeException("Error publishing balance response", e);
         }
@@ -78,7 +91,7 @@ public class BalanceService {
     }
 
     private void notifyCashBoxNearlyFull() {
-        Fault fault = new Fault(machineId, "Cash box nearly full", 1, new Timestamp(System.currentTimeMillis()), UUID.randomUUID(), FaultType.CASSA_QUASI_PIENA);
+        FaultMessage fault = new FaultMessage(machineId, "Cash box nearly full", 1, new Timestamp(System.currentTimeMillis()), UUID.randomUUID(), FaultType.CASSA_QUASI_PIENA);
         try {
             mqttClient.publish(Topics.MANAGEMENT_SERVER_CASHBOX_TOPIC, new MqttMessage(gson.toJson(fault).getBytes()));
         } catch (MqttException e) {
@@ -88,7 +101,7 @@ public class BalanceService {
 
     private void notifyCashBoxFull() {
         try {
-            Fault fault = new Fault(machineId, "Cash box full", 1, new Timestamp(System.currentTimeMillis()), UUID.randomUUID(), FaultType.CASSA_PIENA);
+            FaultMessage fault = new FaultMessage(machineId, "Cash box full", 1, new Timestamp(System.currentTimeMillis()), UUID.randomUUID(), FaultType.CASSA_PIENA);
             mqttClient.publish(Topics.MANAGEMENT_SERVER_CASHBOX_TOPIC, new MqttMessage(gson.toJson(fault).getBytes()));
         } catch (MqttException e) {
             throw new RuntimeException("Error publishing cash box full message", e);

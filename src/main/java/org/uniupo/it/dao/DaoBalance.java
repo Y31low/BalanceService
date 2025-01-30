@@ -1,5 +1,9 @@
 package org.uniupo.it.dao;
 
+import org.uniupo.it.model.FaultMessage;
+
+import java.util.List;
+
 public interface DaoBalance {
     /**
      * Recupera il totale presente in cassa
@@ -33,4 +37,7 @@ public interface DaoBalance {
 
     boolean checkCashBox();
     boolean checkCashBoxFull();
+    void insertFaults(List<FaultMessage> faults);
+
+    double returnMoney();
 }

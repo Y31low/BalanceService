@@ -3,7 +3,7 @@ package org.uniupo.it.model;
 import java.sql.Timestamp;
 import java.util.UUID;
 
-public class Fault {
+public class FaultMessage {
     private String machineId;
     private int instituteId;
     private String description;
@@ -11,7 +11,7 @@ public class Fault {
     private UUID idFault;
     private FaultType faultType;
 
-    public Fault(String machineId, String description,int instituteId, Timestamp timestamp, UUID idFault, FaultType faultType) {
+    public FaultMessage(String machineId, String description, int instituteId, Timestamp timestamp, UUID idFault, FaultType faultType) {
         this.machineId = machineId;
         this.description = description;
         this.instituteId = instituteId;

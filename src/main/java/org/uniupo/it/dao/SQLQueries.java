@@ -47,6 +47,10 @@ public final class SQLQueries {
             FROM machine."Machine"
             WHERE "totalBalance" >= "maxBalance";""";
 
+        public static final String INSERT_FAULTS = """
+                INSERT INTO machine."Fault" (description, id_fault, timestamp, fault_type)\s
+                VALUES (?, ?, ?, ?)""";
+
     }
 
     /**
