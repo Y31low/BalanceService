@@ -1,9 +1,12 @@
 package org.uniupo.it.dao;
 
 import org.uniupo.it.model.FaultMessage;
+import org.uniupo.it.model.FaultType;
 
 import java.sql.*;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 public class DaoBalanceImpl implements DaoBalance{
     @Override
@@ -202,6 +205,82 @@ public class DaoBalanceImpl implements DaoBalance{
             }
         } catch (SQLException e) {
             throw new RuntimeException("Error returning money", e);
+        }
+    }
+
+    @Override
+    public double emptyCashBox() {
+        try (Connection conn = DatabaseConnection.getInstance().getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                double oldBalance;
+                try (PreparedStatement stmt = conn.prepareStatement(SQLQueries.Balance.EMPTY_CASH_BOX)) {
+                    ResultSet rs = stmt.executeQuery();
+                    oldBalance = rs.next() ? rs.getDouble("totalBalance") : 0.0;
+                }
+
+                conn.commit();
+                return oldBalance;
+
+            } catch (SQLException e) {
+                conn.rollback();
+                System.out.println("Error emptying cash box"+e.getMessage());
+                throw new RuntimeException("Error emptying cash box", e);
+            } finally {
+                conn.setAutoCommit(true);
+            }
+        } catch (SQLException e) {
+            System.out.println("Error emptying cash box"+e.getMessage());
+            throw new RuntimeException("Error emptying cash box", e);
+        }
+    }
+
+    @Override
+    public List<UUID> solveCashFullFaults() {
+        Connection conn = null;
+        List<UUID> resolvedFaultIds = new ArrayList<>();
+
+        try {
+            conn = DatabaseConnection.getInstance().getConnection();
+            conn.setAutoCommit(false);
+
+            try (PreparedStatement getFaultsStmt = conn.prepareStatement(SQLQueries.Balance.GET_CASH_FULL_FAULTS)) {
+                getFaultsStmt.setObject(1, FaultType.CASSA_PIENA.name(), Types.OTHER);
+                ResultSet rs = getFaultsStmt.executeQuery();
+
+                while (rs.next()) {
+                    resolvedFaultIds.add(rs.getObject("id_fault", UUID.class));
+                }
+            }
+
+            if (!resolvedFaultIds.isEmpty()) {
+                try (PreparedStatement updateFaultsStmt = conn.prepareStatement(SQLQueries.Balance.UPDATE_CASH_FULL_FAULTS)) {
+                    updateFaultsStmt.setString(1, FaultType.CASSA_PIENA.name());
+                    updateFaultsStmt.executeUpdate();
+                }
+            }
+
+            conn.commit();
+            return resolvedFaultIds;
+
+        } catch (SQLException e) {
+            if (conn != null) {
+                try {
+                    conn.rollback();
+                } catch (SQLException ex) {
+                    throw new RuntimeException("Error rolling back transaction", ex);
+                }
+            }
+            throw new RuntimeException("Error solving cash full faults", e);
+        } finally {
+            if (conn != null) {
+                try {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                } catch (SQLException e) {
+                    System.err.println("Error closing connection: " + e.getMessage());
+                }
+            }
         }
     }
 }

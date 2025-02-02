@@ -51,6 +51,18 @@ public final class SQLQueries {
                 INSERT INTO machine."Fault" (description, id_fault, timestamp, fault_type)\s
                 VALUES (?, ?, ?, ?)""";
 
+        public static final String EMPTY_CASH_BOX =
+                "UPDATE machine.\"Machine\" SET \"totalBalance\" = 0 RETURNING \"totalBalance\"";
+
+        public static final String GET_CASH_FULL_FAULTS =
+                "SELECT id_fault FROM machine.\"Fault\" WHERE fault_type = ?::machine.\"fault_type\" AND risolto = false;";
+
+        public static final String UPDATE_CASH_FULL_FAULTS =
+                "UPDATE machine.\"Fault\" SET risolto = true WHERE fault_type = ?::machine.\"fault_type\" AND risolto = false;";
+
+        public static final String CHECK_UNRESOLVED_FAULTS =
+                "SELECT COUNT(*) as count FROM machine.\"Fault\" WHERE risolto = false;";
+
     }
 
     /**

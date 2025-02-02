@@ -3,6 +3,7 @@ package org.uniupo.it.dao;
 import org.uniupo.it.model.FaultMessage;
 
 import java.util.List;
+import java.util.UUID;
 
 public interface DaoBalance {
     /**
@@ -40,4 +41,8 @@ public interface DaoBalance {
     void insertFaults(List<FaultMessage> faults);
 
     double returnMoney();
+
+    double emptyCashBox();
+
+    List<UUID> solveCashFullFaults();
 }
