@@ -31,6 +31,24 @@ public class BalanceService {
         this.mqttClient.subscribe(String.format(Topics.DISPENSE_COMPLETED_TOPIC, instituteId, machineId), this::handleBalanceAfterSale);
         this.mqttClient.subscribe(String.format(Topics.BALANCE_RETURN_MONEY_TOPIC, instituteId, machineId), this::returnMoney);
         this.mqttClient.subscribe(String.format(Topics.MANAGEMENT_REVENUE_TOPIC, instituteId, machineId), this::revenueRequestHandler);
+        this.mqttClient.subscribe(String.format(Topics.KILL_SERVICE_TOPIC, instituteId, machineId), this::killServiceHandler);
+    }
+
+    private void killServiceHandler(String topic, MqttMessage message) {
+        System.out.println("Service killed hello darkness my old friend :(");
+        new Thread(()->{
+            try {
+                Thread.sleep(1000);
+                if(mqttClient.isConnected()) {
+                    mqttClient.disconnect();
+                }
+                mqttClient.close();
+                System.exit(0);
+            } catch (Exception e) {
+                System.err.println("Error during shutdown: "+e.getMessage());
+                Runtime.getRuntime().halt(1);
+            }
+        }).start();
     }
 
     private void revenueRequestHandler(String topic, MqttMessage message) {

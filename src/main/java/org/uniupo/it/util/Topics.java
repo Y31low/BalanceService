@@ -15,4 +15,6 @@ public class Topics {
     public static final String MANAGEMENT_SERVER_CASHBOX_TOPIC = "management/faults/newFault";
 
     public static final String MANAGEMENT_RESOLVE_FAULT_TOPIC = "management/faults/resolve";
+
+    public static final String KILL_SERVICE_TOPIC = "macchinette/%s/%s/killService";
 }
