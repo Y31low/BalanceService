@@ -26,7 +26,7 @@ public class BalanceService {
         this.mqttClient = mqttClient;
         this.instituteId = instituteId;
         this.gson = new Gson();
-        this.balanceDao = new DaoBalanceImpl();
+        this.balanceDao = new DaoBalanceImpl(instituteId, machineId);
         this.mqttClient.subscribe(String.format(Topics.BALANCE_CHECK_TOPIC, instituteId, machineId), this::balanceRequestHandler);
         this.mqttClient.subscribe(String.format(Topics.DISPENSE_COMPLETED_TOPIC, instituteId, machineId), this::handleBalanceAfterSale);
         this.mqttClient.subscribe(String.format(Topics.BALANCE_RETURN_MONEY_TOPIC, instituteId, machineId), this::returnMoney);

@@ -9,22 +9,32 @@ import java.util.List;
 import java.util.UUID;
 
 public class DaoBalanceImpl implements DaoBalance{
+
+    private String instituteId;
+    private String machineId;
+
+    public DaoBalanceImpl(String instituteId, String machineId) {
+        this.instituteId = instituteId;
+        this.machineId = machineId;
+    }
     @Override
     public double getTotalBalance() {
         try(Connection conn= DatabaseConnection.getInstance().getConnection()) {
             try (PreparedStatement stmt = conn.prepareStatement(
-                    SQLQueries.Balance.GET_TOTAL_BALANCE)) {
+                    SQLQueries.Balance.getGetTotalBalance(instituteId, machineId))) {
                 ResultSet rs = stmt.executeQuery();
                 if (rs.next()) {
                     return rs.getDouble("totalBalance");
                 }
                 return 0.0;
             } catch (SQLException e) {
+                System.out.println("Error retrieving total balance"+e.getMessage());
                 throw new RuntimeException("Error retrieving total balance", e);
             }
 
         }
         catch (SQLException e) {
+            System.out.println("Error getting total balance"+e.getMessage());
             throw new RuntimeException("Error getting total balance", e);
         }
     }
@@ -33,18 +43,20 @@ public class DaoBalanceImpl implements DaoBalance{
     public double getMaxBalance() {
         try(Connection conn= DatabaseConnection.getInstance().getConnection()) {
             try (PreparedStatement stmt = conn.prepareStatement(
-                    SQLQueries.Balance.GET_MAX_BALANCE)) {
+                    SQLQueries.Balance.getGetMaxBalance(instituteId, machineId))) {
                 ResultSet rs = stmt.executeQuery();
                 if (rs.next()) {
                     return rs.getDouble("maxBalance");
                 }
                 return 0.0;
             } catch (SQLException e) {
+                System.out.println("Error retrieving max balance"+e.getMessage());
                 throw new RuntimeException("Error retrieving max balance", e);
             }
 
         }
         catch (SQLException e) {
+            System.out.println("Error getting max balance"+e.getMessage());
             throw new RuntimeException("Error getting max balance", e);
         }
     }
@@ -53,7 +65,7 @@ public class DaoBalanceImpl implements DaoBalance{
     public double getDrinkPrice(String drinkCode) {
         try(Connection conn= DatabaseConnection.getInstance().getConnection()) {
             try (PreparedStatement stmt = conn.prepareStatement(
-                    SQLQueries.Drink.GET_DRINK_PRICE)) {
+                    SQLQueries.Drink.getGetDrinkPrice(instituteId, machineId))) {
                 stmt.setString(1, drinkCode);
                 ResultSet rs = stmt.executeQuery();
                 if (rs.next()) {
@@ -61,11 +73,13 @@ public class DaoBalanceImpl implements DaoBalance{
                 }
                 return 0.0;
             } catch (SQLException e) {
+                System.out.println("Error retrieving drink price"+e.getMessage());
                 throw new RuntimeException("Error retrieving drink price", e);
             }
 
         }
         catch (SQLException e) {
+            System.out.println("Error getting drink price"+e.getMessage());
             throw new RuntimeException("Error getting drink price", e);
         }
     }
@@ -73,7 +87,7 @@ public class DaoBalanceImpl implements DaoBalance{
     @Override
     public boolean updateTotalBalance(double newBalance) {
         try(Connection conn= DatabaseConnection.getInstance().getConnection()) {
-            try (PreparedStatement stmt = conn.prepareStatement(SQLQueries.Balance.UPDATE_TOTAL_BALANCE)) {
+            try (PreparedStatement stmt = conn.prepareStatement(SQLQueries.Balance.getUpdateTotalBalance(instituteId, machineId))) {
                 stmt.setDouble(1, newBalance);
                 return stmt.executeUpdate() > 0;
             } catch (SQLException e) {
@@ -81,6 +95,7 @@ public class DaoBalanceImpl implements DaoBalance{
             }
         }
         catch (SQLException e) {
+            System.out.println("Error updating total balance"+e.getMessage());
             throw new RuntimeException("Error updating total balance", e);
         }
     }
@@ -91,19 +106,19 @@ public class DaoBalanceImpl implements DaoBalance{
             conn.setAutoCommit(false);
             try {
                 double currentBalance;
-                try (PreparedStatement stmtGetBalance = conn.prepareStatement(SQLQueries.Balance.GET_TOTAL_BALANCE)) {
+                try (PreparedStatement stmtGetBalance = conn.prepareStatement(SQLQueries.Balance.getGetTotalBalance(instituteId, machineId))) {
                     ResultSet rs = stmtGetBalance.executeQuery();
                     currentBalance = rs.next() ? rs.getDouble("totalBalance") : 0.0;
                 }
 
-                try (PreparedStatement stmtBalance = conn.prepareStatement(SQLQueries.Balance.UPDATE_TOTAL_BALANCE)) {
+                try (PreparedStatement stmtBalance = conn.prepareStatement(SQLQueries.Balance.getUpdateTotalBalance(instituteId, machineId))) {
                     System.out.println("Updating balance after sale");
                     stmtBalance.setDouble(1, currentBalance + drinkPrice);
                     stmtBalance.executeUpdate();
                     System.out.println("Updated balance after sale");
                 }
 
-                try (PreparedStatement stmtCredit = conn.prepareStatement(SQLQueries.Balance.RESET_CREDIT)) {
+                try (PreparedStatement stmtCredit = conn.prepareStatement(SQLQueries.Balance.getResetCredit(instituteId, machineId))) {
                     System.out.println("Resetting credit");
                     stmtCredit.executeUpdate();
                     System.out.println("Credit reset");
@@ -118,6 +133,7 @@ public class DaoBalanceImpl implements DaoBalance{
                 conn.setAutoCommit(true);
             }
         } catch (SQLException e) {
+            System.out.println("Error updating balance after sale"+e.getMessage());
             throw new RuntimeException("Error updating balance after sale", e);
         }
     }
@@ -125,12 +141,13 @@ public class DaoBalanceImpl implements DaoBalance{
     @Override
     public double getCurrentCredit() {
         try (Connection conn = DatabaseConnection.getInstance().getConnection();
-             PreparedStatement stmt = conn.prepareStatement(SQLQueries.Balance.GET_CURRENT_CREDIT)) {
+             PreparedStatement stmt = conn.prepareStatement(SQLQueries.Balance.getGetCurrentCredit(instituteId, machineId))) {
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
                 return rs.getDouble("totalCredit");
             }
         } catch (SQLException e) {
+            System.out.println("Failed to get current credit"+e.getMessage());
             throw new RuntimeException(e);
         }
         return 0.0;
@@ -139,10 +156,11 @@ public class DaoBalanceImpl implements DaoBalance{
     @Override
     public boolean checkCashBox() {
         try (Connection conn = DatabaseConnection.getInstance().getConnection();
-             PreparedStatement stmt = conn.prepareStatement(SQLQueries.Balance.CHECK_CASH_BOX)) {
+             PreparedStatement stmt = conn.prepareStatement(SQLQueries.Balance.getCheckCashBox(instituteId, machineId))) {
             ResultSet rs = stmt.executeQuery();
             return rs.next();
         } catch (SQLException e) {
+            System.out.println("Failed to check cash box status"+e.getMessage());
             throw new RuntimeException("Failed to check cash box status", e);
         }
     }
@@ -150,11 +168,11 @@ public class DaoBalanceImpl implements DaoBalance{
     @Override
     public boolean checkCashBoxFull() {
         try (Connection conn = DatabaseConnection.getInstance().getConnection();
-             PreparedStatement stmt = conn.prepareStatement(SQLQueries.Balance.CHECK_CASH_BOX_FULL)) {
+             PreparedStatement stmt = conn.prepareStatement(SQLQueries.Balance.getCheckCashBoxFull(instituteId, machineId))) {
             ResultSet rs = stmt.executeQuery();
             return rs.next();
         } catch (SQLException e) {
-
+            System.out.println("Failed to check if cash box is full"+e.getMessage());
             throw new RuntimeException("Failed to check if cash box is full", e);
         }
     }
@@ -162,7 +180,7 @@ public class DaoBalanceImpl implements DaoBalance{
     @Override
     public void insertFaults(List<FaultMessage> faults) {
         try (Connection conn = DatabaseConnection.getInstance().getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(SQLQueries.Balance.INSERT_FAULTS)) {
+             PreparedStatement pstmt = conn.prepareStatement(SQLQueries.Balance.getInsertFaults(instituteId, machineId))) {
 
             for (FaultMessage fault : faults) {
                 pstmt.setString(1, fault.getDescription());
@@ -186,12 +204,12 @@ public class DaoBalanceImpl implements DaoBalance{
             conn.setAutoCommit(false);
             try {
                 double creditToReturn;
-                try (PreparedStatement stmtGetCredit = conn.prepareStatement(SQLQueries.Balance.GET_CURRENT_CREDIT)) {
+                try (PreparedStatement stmtGetCredit = conn.prepareStatement(SQLQueries.Balance.getGetCurrentCredit(instituteId, machineId))) {
                     ResultSet rs = stmtGetCredit.executeQuery();
                     creditToReturn = rs.next() ? rs.getDouble("totalCredit") : 0.0;
                 }
 
-                try (PreparedStatement stmtResetCredit = conn.prepareStatement(SQLQueries.Balance.RESET_CREDIT)) {
+                try (PreparedStatement stmtResetCredit = conn.prepareStatement(SQLQueries.Balance.getResetCredit(instituteId, machineId))) {
                     stmtResetCredit.executeUpdate();
                 }
 
@@ -199,11 +217,13 @@ public class DaoBalanceImpl implements DaoBalance{
                 return creditToReturn;
             } catch (SQLException e) {
                 conn.rollback();
+                System.out.println("Error returning money"+e.getMessage());
                 throw new RuntimeException("Error returning money", e);
             } finally {
                 conn.setAutoCommit(true);
             }
         } catch (SQLException e) {
+            System.out.println("Error returning money"+e.getMessage());
             throw new RuntimeException("Error returning money", e);
         }
     }
@@ -214,7 +234,7 @@ public class DaoBalanceImpl implements DaoBalance{
             conn.setAutoCommit(false);
             try {
                 double oldBalance;
-                try (PreparedStatement stmt = conn.prepareStatement(SQLQueries.Balance.EMPTY_CASH_BOX)) {
+                try (PreparedStatement stmt = conn.prepareStatement(SQLQueries.Balance.getEmptyCashBox(instituteId, machineId))) {
                     ResultSet rs = stmt.executeQuery();
                     oldBalance = rs.next() ? rs.getDouble("totalBalance") : 0.0;
                 }
@@ -244,7 +264,7 @@ public class DaoBalanceImpl implements DaoBalance{
             conn = DatabaseConnection.getInstance().getConnection();
             conn.setAutoCommit(false);
 
-            try (PreparedStatement getFaultsStmt = conn.prepareStatement(SQLQueries.Balance.GET_CASH_FULL_FAULTS)) {
+            try (PreparedStatement getFaultsStmt = conn.prepareStatement(SQLQueries.Balance.getGetCashFullFaults(instituteId, machineId))) {
                 getFaultsStmt.setObject(1, FaultType.CASSA_PIENA.name(), Types.OTHER);
                 ResultSet rs = getFaultsStmt.executeQuery();
 
@@ -254,7 +274,7 @@ public class DaoBalanceImpl implements DaoBalance{
             }
 
             if (!resolvedFaultIds.isEmpty()) {
-                try (PreparedStatement updateFaultsStmt = conn.prepareStatement(SQLQueries.Balance.UPDATE_CASH_FULL_FAULTS)) {
+                try (PreparedStatement updateFaultsStmt = conn.prepareStatement(SQLQueries.Balance.getUpdateCashFullFaults(instituteId, machineId))) {
                     updateFaultsStmt.setString(1, FaultType.CASSA_PIENA.name());
                     updateFaultsStmt.executeUpdate();
                 }
@@ -268,9 +288,11 @@ public class DaoBalanceImpl implements DaoBalance{
                 try {
                     conn.rollback();
                 } catch (SQLException ex) {
+                    System.err.println("Error rolling back transaction: " + ex.getMessage());
                     throw new RuntimeException("Error rolling back transaction", ex);
                 }
             }
+            System.err.println("Error solving cash full faults: " + e.getMessage());
             throw new RuntimeException("Error solving cash full faults", e);
         } finally {
             if (conn != null) {
