@@ -51,6 +51,7 @@ public class BalanceService {
         }).start();
     }
 
+
     private void revenueRequestHandler(String topic, MqttMessage message) {
         System.out.println("Received revenue request");
         String revenueRequester = new String(message.getPayload());
@@ -111,9 +112,13 @@ public class BalanceService {
         System.out.println("Drink price: " + drinkPrice);
         double currentCredit = balanceDao.getCurrentCredit();
         System.out.println("Current credit: " + currentCredit);
-
         double change = currentCredit - drinkPrice;
-        System.out.printf("Change: %.2f\n", change);
+        try {
+            DisplayMessageFormat displayMessage = new DisplayMessageFormat(false, String.format("Resto: %.2f", change));
+            mqttClient.publish(String.format(Topics.DISPLAY_TOPIC_UPDATE, instituteId, machineId), new MqttMessage(gson.toJson(displayMessage).getBytes()));
+        } catch (MqttException e) {
+            throw new RuntimeException("Error publishing balance response", e);
+        }
         balanceDao.updateBalanceAfterSale(drinkPrice);
 
         balanceCheckUp();
